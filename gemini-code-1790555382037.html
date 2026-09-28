@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>작심며칠 - AI 시험 스케줄러</title>
+  <style>
+    :root {
+      --bg-color: #f1f5f9;
+      --app-bg: #ffffff;
+      --text-color: #0f172a;
+      --text-muted: #64748b;
+      --accent-color: #6366f1;
+      --accent-hover: #4f46e5;
+      --border-color: #e2e8f0;
+      --secondary-bg: #f8fafc;
+      --highlight-bg: #e0e7ff;
+      --highlight-text: #3730a3;
+      --cell-selected: #818cf8;
+      --card-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #020617;
+      --app-bg: #0f172a;
+      --text-color: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-color: #818cf8;
+      --accent-hover: #6366f1;
+      --border-color: #1e293b;
+      --secondary-bg: #1e293b;
+      --highlight-bg: #312e81;
+      --highlight-text: #c7d2fe;
+      --cell-selected: #6366f1;
+    }
+
+    [data-style="coral"] {
+      --accent-color: #f43f5e;
+      --accent-hover: #e11d48;
+      --highlight-bg: #ffe4e6;
+      --highlight-text: #9f1239;
+      --cell-selected: #fb7185;
+    }
+
+    [data-style="forest"] {
+      --accent-color: #10b981;
+      --accent-hover: #059669;
+      --highlight-bg: #d1fae5;
+      --highlight-text: #065f46;
+      --cell-selected: #34d399;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .mobile-shell {
+      width: 100%;
+      max-width: 440px;
+      background-color: var(--app-bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 25px rgba(0,0,0,0.1);
+      position: relative;
+    }
+
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: var(--app-bg);
+      z-index: 50;
+    }
+
+    .brand {
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: var(--accent-color);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .theme-controls {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .icon-btn {
+      background: var(--secondary-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 0.4rem 0.6rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .progress-bar-wrap {
+      padding: 0.75rem 1.25rem;
+      background: var(--secondary-bg);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .progress-dots {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .progress-dots span.active {
+      color: var(--accent-color);
+    }
+
+    .track {
+      height: 6px;
+      background: var(--border-color);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      background: var(--accent-color);
+      width: 20%;
+      transition: width 0.3s ease;
+    }
+
+    main {
+      padding: 1.25rem;
+      flex: 1;
+      padding-bottom: 5rem;
+    }
+
+    .step-card {
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+
+    .step-card.active {
+      display: block;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 { font-size: 1.25rem; margin: 0 0 0.3rem 0; font-weight: 800; }
+    p.subtitle { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem 0; }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      background: var(--secondary-bg);
+      color: var(--text-color);
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent-color);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .subject-card {
+      background: var(--secondary-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .subject-title {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--accent-color);
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      max-width: 440px;
+      padding: 0.75rem 1.25rem;
+      background: var(--app-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 0.5rem;
+      z-index: 50;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.85rem;
+      border-radius: 10px;
+      border: none;
+      background: var(--accent-color);
+      color: white;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .btn-secondary {
+      background: var(--secondary-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      flex: 0.4;
+    }
+
+    .timetable-container {
+      max-height: 280px;
+      overflow-y: auto;
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-bottom: 1rem;
+    }
+
+    .timetable-grid {
+      display: grid;
+      grid-template-columns: 45px repeat(7, 1fr);
+      user-select: none;
+      font-size: 0.7rem;
+      min-width: 320px;
+    }
+
+    .time-header {
+      position: sticky;
+      top: 0;
+      background: var(--secondary-bg);
+      padding: 0.4rem 0.1rem;
+      text-align: center;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      z-index: 10;
+    }
+
+    .time-label {
+      background: var(--secondary-bg);
+      padding: 0.3rem 0.1rem;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.65rem;
+      border-bottom: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+    }
+
+    .time-cell {
+      height: 22px;
+      border-bottom: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      background: var(--app-bg);
+      cursor: pointer;
+    }
+
+    .time-cell.selected {
+      background: var(--cell-selected);
+    }
+
+    #loading-view {
+      display: none;
+      text-align: center;
+      padding: 4rem 1rem;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid var(--border-color);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1.5rem auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .view-tabs {
+      display: flex;
+      gap: 0.3rem;
+      margin-bottom: 1rem;
+      background: var(--secondary-bg);
+      padding: 0.25rem;
+      border-radius: 10px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: var(--app-bg);
+      color: var(--accent-color);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .plan-day-card {
+      background: var(--secondary-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .day-title {
+      font-weight: 800;
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .task-box {
+      background: var(--app-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.65rem 0.75rem;
+      margin-top: 0.4rem;
+    }
+
+    .task-subject {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--accent-color);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .task-range {
+      font-size: 0.8rem;
+      margin-top: 0.3rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+
+    .tag {
+      background: var(--highlight-bg);
+      color: var(--highlight-text);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .tag-goal {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .guide-box {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+      background: var(--app-bg);
+      padding: 0.4rem;
+      border-radius: 6px;
+      border-left: 3px solid var(--accent-color);
+    }
+
+    .week-filter-btns {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
+      overflow-x: auto;
+      padding-bottom: 0.2rem;
+    }
+
+    .week-filter-btn {
+      padding: 0.35rem 0.7rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--secondary-bg);
+      color: var(--text-color);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .week-filter-btn.active {
+      background: var(--accent-color);
+      color: white;
+      border-color: var(--accent-color);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mobile-shell">
+    <header>
+      <div class="brand">⏳ 작심며칠</div>
+      <div class="theme-controls">
+        <button class="icon-btn" onclick="toggleDarkMode()">🌓 다크</button>
+        <button class="icon-btn" onclick="changeThemeStyle()">🎨 테마</button>
+      </div>
+    </header>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-dots">
+        <span class="active" id="dot-1">1. 과목</span>
+        <span id="dot-2">2. 실력/목표</span>
+        <span id="dot-3">3. 일정</span>
+        <span id="dot-4">4. 스타일</span>
+        <span id="dot-5">5. 결과</span>
+      </div>
+      <div class="track">
+        <div class="fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <main>
+      <!-- 1단계 -->
+      <div class="step-card active" id="step-1">
+        <h2>1단계: 시험 과목 & 범위</h2>
+        <p class="subtitle">시험 과목 수와 과목별 상세 범위를 입력해 주세요.</p>
+
+        <div class="form-group" style="background: var(--secondary-bg); padding: 0.8rem; border-radius: 10px;">
+          <label>💡 시험 과목 수 일괄 설정</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="number" id="init-subject-count" value="7" min="1" max="15" placeholder="예: 7" />
+            <button class="btn" style="flex: 0.6; padding:0;" onclick="generateSubjectInputs()">과목칸 생성</button>
+          </div>
+        </div>
+
+        <div id="subjects-container"></div>
+
+        <button class="btn btn-secondary" style="width: 100%; margin-bottom: 1rem;" onclick="addSingleSubject()">+ 과목 1개 더 추가</button>
+      </div>
+
+      <!-- 2단계 -->
+      <div class="step-card" id="step-2">
+        <h2>2단계: 실력 & 목표 점수 진단</h2>
+        <p class="subtitle">현재 실력과 **목표 점수**에 맞춘 전술을 구성합니다.</p>
+        <div id="step-2-container"></div>
+      </div>
+
+      <!-- 3단계 -->
+      <div class="step-card" id="step-3">
+        <h2>3단계: 24시간 일정 & 숙제 설정</h2>
+        <p class="subtitle">드래그/클릭으로 고정 일정을 선택하세요.</p>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <label style="margin:0;">24시간 주간 시간표 (클릭/드래그)</label>
+          <button class="icon-btn" onclick="fillSchoolHours()">🏫 학교시간(08~16시)</button>
+        </div>
+
+        <div class="timetable-container">
+          <div class="timetable-grid" id="timetable"></div>
+        </div>
+
+        <div class="form-group">
+          <label>학원/학교 숙제 하루 소요 시간</label>
+          <select id="homework-hours">
+            <option value="1">1시간 미만</option>
+            <option value="2" selected>약 2시간</option>
+            <option value="3">3시간 이상</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>숙제 수행 선호 방식</label>
+          <select id="homework-style">
+            <option value="burst">하루에 몰아서 끝내기</option>
+            <option value="split" selected>며칠에 걸쳐 분산해서 하기</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 4단계 -->
+      <div class="step-card" id="step-4">
+        <h2>4단계: 공부 스타일 & 시험 기간</h2>
+        <p class="subtitle">학습 알고리즘 가동을 위한 최종 설정입니다.</p>
+
+        <div class="form-group">
+          <label>시험 D-Day (계획표 생성 기간)</label>
+          <select id="d-day" onchange="updateDDayVal()">
+            <option value="7">D-7 (1주일 플랜)</option>
+            <option value="14" selected>D-14 (2주일 플랜)</option>
+            <option value="21">D-21 (3주일 플랜)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>하루 평균 수면 시간</label>
+          <select id="sleep-time">
+            <option value="6">6시간 (새벽공부형)</option>
+            <option value="7" selected>7시간 (표준 수면형)</option>
+            <option value="8">8시간 (충분한 수면형)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>시험 과목 공부 배치 스타일</label>
+          <select id="study-style">
+            <option value="concentrated">한 과목 집중 몰아치기</option>
+            <option value="distributed" selected>여러 과목 며칠간 분산해서 하기</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>시험 직전 비상 보완 시간(Buffer Time) 확보</label>
+          <select id="buffer-time">
+            <option value="yes" selected>예 (밀릴 때를 대비해 밤에 1시간 비워둠)</option>
+            <option value="no">아니오 (타이트하게 빡빡하게 채움)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 로딩 -->
+      <div id="loading-view">
+        <div class="spinner"></div>
+        <h3 id="loading-msg" style="color: var(--accent-color); margin: 0 0 0.5rem 0;">목표 점수별 가중치 산출 중...</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">전체 기간(D-Day)에 맞춰 일자별/주차별 할당량을 분석합니다.</p>
+      </div>
+
+      <!-- 5단계 -->
+      <div class="step-card" id="step-5">
+        <h2>5단계: AI 맞춤 스케줄 완성! 🎉</h2>
+        <p class="subtitle" id="result-subtitle">D-14 전체 기간 최적화 계획표입니다.</p>
+
+        <div class="view-tabs">
+          <button class="tab-btn active" onclick="switchResultTab('daily', this)">일별 체크리스트</button>
+          <button class="tab-btn" onclick="switchResultTab('weekly', this)">주간 시간표</button>
+          <button class="tab-btn" onclick="switchResultTab('roadmap', this)">회독 로드맵</button>
+        </div>
+
+        <div id="week-filter-container"></div>
+        <div id="plan-output"></div>
+      </div>
+    </main>
+
+    <div class="bottom-bar" id="bottom-bar">
+      <button class="btn btn-secondary" id="prev-btn" onclick="goPrev()" style="display:none;">이전</button>
+      <button class="btn" id="next-btn" onclick="goNext()">다음 단계로 👉</button>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+    let subjects = [];
+    let isMouseDown = false;
+    const themeStyles = ['default', 'coral', 'forest'];
+    let currentStyleIdx = 0;
+    let selectedDDay = 14; // 기본 D-14
+    let activeWeekFilter = 1;
+
+    function toggleDarkMode() {
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      if (isDark) document.body.removeAttribute('data-theme');
+      else document.body.setAttribute('data-theme', 'dark');
+    }
+
+    function changeThemeStyle() {
+      currentStyleIdx = (currentStyleIdx + 1) % themeStyles.length;
+      const styleName = themeStyles[currentStyleIdx];
+      if (styleName === 'default') document.body.removeAttribute('data-style');
+      else document.body.setAttribute('data-style', styleName);
+    }
+
+    function updateDDayVal() {
+      selectedDDay = parseInt(document.getElementById('d-day').value) || 14;
+    }
+
+    function goNext() {
+      if (currentStep === 1) {
+        collectStep1Data();
+        if (subjects.length === 0) {
+          alert("최소 1개 이상의 과목을 입력해주세요!");
+          return;
+        }
+        renderStep2();
+      }
+
+      if (currentStep < 4) {
+        currentStep++;
+        updateStepUI();
+      } else if (currentStep === 4) {
+        updateDDayVal();
+        runLoadingAndGenerate();
+      }
+    }
+
+    function goPrev() {
+      if (currentStep > 1) {
+        currentStep--;
+        updateStepUI();
+      }
+    }
+
+    function updateStepUI() {
+      document.querySelectorAll('.step-card').forEach(c => c.classList.remove('active'));
+      document.getElementById(`step-${currentStep}`).classList.add('active');
+
+      document.querySelectorAll('.progress-dots span').forEach((dot, idx) => {
+        if (idx + 1 <= currentStep) dot.classList.add('active');
+        else dot.classList.remove('active');
+      });
+      document.getElementById('progress-fill').style.width = `${(currentStep / 5) * 100}%`;
+
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+
+      prevBtn.style.display = currentStep > 1 && currentStep < 5 ? 'block' : 'none';
+      
+      if (currentStep === 4) nextBtn.innerText = '✨ AI 스케줄 생성하기';
+      else if (currentStep === 5) {
+        document.getElementById('bottom-bar').style.display = 'none';
+      } else {
+        nextBtn.innerText = '다음 단계로 👉';
+      }
+
+      window.scrollTo(0, 0);
+    }
+
+    function generateSubjectInputs() {
+      const count = parseInt(document.getElementById('init-subject-count').value) || 7;
+      const container = document.getElementById('subjects-container');
+      container.innerHTML = '';
+
+      const defaultNames = ['국어', '수학 I', '영어', '한국사', '통합과학', '통합사회', '기타 과목'];
+
+      for (let i = 0; i < count; i++) {
+        const name = defaultNames[i] || `과목 ${i + 1}`;
+        container.appendChild(createSubjectCard(i + 1, name));
+      }
+    }
+
+    function addSingleSubject() {
+      const container = document.getElementById('subjects-container');
+      const count = container.children.length + 1;
+      container.appendChild(createSubjectCard(count, `과목 ${count}`));
+    }
+
+    function createSubjectCard(num, defaultName) {
+      const div = document.createElement('div');
+      div.className = 'subject-card';
+      div.innerHTML = `
+        <div class="subject-title">
+          <span>과목 ${num}</span>
+          <span style="font-size:0.75rem; color:red; cursor:pointer;" onclick="this.closest('.subject-card').remove()">삭제</span>
+        </div>
+        <div class="form-group">
+          <label>과목명</label>
+          <input type="text" class="sub-name" value="${defaultName}" placeholder="예: 수학 I" />
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>교과서 범위 (p)</label>
+            <input type="text" class="sub-book" value="10~80" placeholder="예: 10~80" />
+          </div>
+          <div class="form-group">
+            <label>프린트 범위 (쪽)</label>
+            <input type="text" class="sub-print" value="1~15" placeholder="예: 1~15" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>기타 범위 (모의고사/부교재 등)</label>
+          <input type="text" class="sub-etc" value="모의고사 20~35번" placeholder="예: 모의고사 20~35번" />
+        </div>
+      `;
+      return div;
+    }
+
+    function collectStep1Data() {
+      subjects = [];
+      const cards = document.querySelectorAll('.subject-card');
+      cards.forEach((card, idx) => {
+        const name = card.querySelector('.sub-name').value || `과목 ${idx + 1}`;
+        const book = card.querySelector('.sub-book').value || '';
+        const print = card.querySelector('.sub-print').value || '';
+        const etc = card.querySelector('.sub-etc').value || '';
+
+        subjects.push({
+          id: idx,
+          name,
+          book,
+          print,
+          etc,
+          level: '중',
+          targetScore: '100',
+          guide: '기본 유형 풀이와 개념 정리 위주 배치',
+          examType: '교과서 위주'
+        });
+      });
+    }
+
+    const levelGuides = {
+      '최하': '💡 개념 이해조차 부족 -> 개념서 회독에 시간의 70% 집중',
+      '하': '💡 개념은 아나 예제 난항 -> 대표 예제 복습 타임 집중',
+      '중하': '💡 기본 문제 가능 -> 유형별 반복 훈련 위주',
+      '중': '💡 표준 레벨 -> 개념 30% + 문제풀이 70% 균형 배치',
+      '중상': '💡 문풀 완성도 높음 -> 실전 모의고사 및 실수 잡기',
+      '상': '💡 심화 유형 가능 -> 킬러 문항 및 고난도 타깃',
+      '최상': '💡 복습만 필요 -> 오답노트 점검 위주 배치'
+    };
+
+    function renderStep2() {
+      const container = document.getElementById('step-2-container');
+      container.innerHTML = '';
+
+      subjects.forEach((sub, idx) => {
+        const card = document.createElement('div');
+        card.className = 'subject-card';
+        card.innerHTML = `
+          <div class="subject-title">📌 ${sub.name}</div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>현재 실력 수준</label>
+              <select onchange="updateSubjectLevel(${idx}, this.value, 'guide-${idx}')">
+                <option value="최하">최하 (기본 개념 부족)</option>
+                <option value="하">하 (예제 어려움)</option>
+                <option value="중하">중하 (기본 문제 가능)</option>
+                <option value="중" selected>중 (보통 레벨)</option>
+                <option value="중상">중상 (웬만한 문풀 가능)</option>
+                <option value="상">상 (심화 유형 완수)</option>
+                <option value="최상">최상 (복습만 필요)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>🎯 목표 점수</label>
+              <select onchange="subjects[${idx}].targetScore = this.value">
+                <option value="100" selected>100점 (완벽 대비 / 고난도)</option>
+                <option value="90">90점 이상 (안전권 A등급)</option>
+                <option value="80">80점 이상 (핵심/기본 집중)</option>
+                <option value="70">70점 목표 (기본 점수 확보)</option>
+              </select>
+            </div>
+          </div>
+          <div class="guide-box" id="guide-${idx}">${levelGuides['중']}</div>
+          <div class="form-group" style="margin-top: 0.8rem;">
+            <label>선생님 출제 특성</label>
+            <select onchange="subjects[${idx}].examType = this.value">
+              <option value="교과서 위주" selected>교과서/기본서 위주 출제</option>
+              <option value="프린트 위주">프린트/부교재 위주 출제</option>
+              <option value="고난도 변형">고난도 수능형 변형 출제</option>
+            </select>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateSubjectLevel(idx, val, guideId) {
+      subjects[idx].level = val;
+      subjects[idx].guide = levelGuides[val];
+      document.getElementById(guideId).innerText = levelGuides[val];
+    }
+
+    function initTimetable() {
+      const grid = document.getElementById('timetable');
+      grid.innerHTML = '';
+      const days = ['시간', '월', '화', '수', '목', '금', '토', '일'];
+
+      days.forEach(d => {
+        const h = document.createElement('div');
+        h.className = 'time-header';
+        h.innerText = d;
+        grid.appendChild(h);
+      });
+
+      for (let hour = 0; hour < 24; hour++) {
+        const label = document.createElement('div');
+        label.className = 'time-label';
+        const formattedHour = hour < 10 ? `0${hour}` : hour;
+        label.innerText = `${formattedHour}:00`;
+        grid.appendChild(label);
+
+        for (let day = 0; day < 7; day++) {
+          const cell = document.createElement('div');
+          cell.className = 'time-cell';
+          cell.dataset.day = day;
+          cell.dataset.hour = hour;
+          cell.addEventListener('mousedown', () => { isMouseDown = true; cell.classList.toggle('selected'); });
+          cell.addEventListener('mouseover', () => { if (isMouseDown) cell.classList.add('selected'); });
+          grid.appendChild(cell);
+        }
+      }
+      document.addEventListener('mouseup', () => { isMouseDown = false; });
+    }
+
+    function fillSchoolHours() {
+      const cells = document.querySelectorAll('.time-cell');
+      cells.forEach(cell => {
+        const day = parseInt(cell.dataset.day);
+        const hour = parseInt(cell.dataset.hour);
+        if (day >= 0 && day <= 4 && hour >= 8 && hour < 16) {
+          cell.classList.add('selected');
+        }
+      });
+    }
+
+    const loadingPhrases = [
+      "목표 점수별 시험 범위 가중치 계산 중...",
+      "학원 숙제 시간을 피해서 순공 시간 추출 중...",
+      "D-Day 전체 기간에 맞춰 회독 플랜 짜는 중...",
+      "작심삼일 방지 알람 설정 완료 중...!"
+    ];
+
+    function runLoadingAndGenerate() {
+      document.querySelectorAll('.step-card').forEach(c => c.classList.remove('active'));
+      const loadingView = document.getElementById('loading-view');
+      const loadingMsg = document.getElementById('loading-msg');
+      loadingView.style.display = 'block';
+
+      let idx = 0;
+      const timer = setInterval(() => {
+        idx = (idx + 1) % loadingPhrases.length;
+        loadingMsg.innerText = loadingPhrases[idx];
+      }, 900);
+
+      setTimeout(() => {
+        clearInterval(timer);
+        loadingView.style.display = 'none';
+        currentStep = 5;
+        updateStepUI();
+        document.getElementById('result-subtitle').innerText = `총 ${selectedDDay}일간의 목표 점수 맞춤 플랜입니다.`;
+        activeWeekFilter = 1;
+        renderPlanResults('daily');
+      }, 3000);
+    }
+
+    function renderPlanResults(mode) {
+      const output = document.getElementById('plan-output');
+      const filterContainer = document.getElementById('week-filter-container');
+      output.innerHTML = '';
+      filterContainer.innerHTML = '';
+
+      const totalWeeks = Math.ceil(selectedDDay / 7);
+
+      // 일별 체크리스트 탭일 경우 주차 필터 버튼 제공
+      if (mode === 'daily') {
+        let filterHTML = '<div class="week-filter-btns">';
+        for (let w = 1; w <= totalWeeks; w++) {
+          filterHTML += `<button class="week-filter-btn ${w === activeWeekFilter ? 'active' : ''}" onclick="changeWeekFilter(${w})">${w}주차 플랜</button>`;
+        }
+        filterHTML += '</div>';
+        filterContainer.innerHTML = filterHTML;
+
+        const startDayIdx = (activeWeekFilter - 1) * 7;
+        const endDayIdx = Math.min(startDayIdx + 7, selectedDDay);
+
+        const dayNames = ['월', '화', '수', '목', '금', '토', '일'];
+
+        for (let dayNum = startDayIdx + 1; dayNum <= endDayIdx; dayNum++) {
+          const dayOfWeekStr = dayNames[(dayNum - 1) % 7];
+          const card = document.createElement('div');
+          card.className = 'plan-day-card';
+
+          let taskHTML = '';
+          subjects.forEach((sub, sIdx) => {
+            // 목표 점수에 따라 할당 시간 및 집중 전략 다르게 적용
+            let studyHours = sub.targetScore === '100' ? '2.0시간' : sub.targetScore === '90' ? '1.5시간' : '1.0시간';
+            let goalStrategy = sub.targetScore === '100' ? '🔥 100점 목표: 고난도/변형문제 오답 완벽 풀이' : sub.targetScore === '80' ? '🎯 80점 목표: 필수 기본 개념 및 기출 위주' : '⚡ 핵심 범위 반복 학습';
+
+            if ((dayNum + sIdx) % 2 === 0) {
+              taskHTML += `
+                <div class="task-box">
+                  <div class="task-subject">
+                    <span>🎯 ${sub.name} (${studyHours})</span>
+                    <span class="tag-goal">목표 ${sub.targetScore}점</span>
+                  </div>
+                  <div class="task-range">
+                    ${sub.book ? `<span class="tag">📘 교과서 p.${(dayNum * 5)}~p.${(dayNum * 5 + 15)}</span>` : ''}
+                    ${sub.print ? `<span class="tag">📄 프린트 ${dayNum}쪽~${dayNum + 2}쪽</span>` : ''}
+                    ${sub.etc ? `<span class="tag">📝 ${sub.etc}</span>` : ''}
+                  </div>
+                  <div class="guide-box">${goalStrategy}<br>${sub.guide}</div>
+                </div>
+              `;
+            }
+          });
+
+          if (!taskHTML) {
+            taskHTML = `
+              <div class="task-box">
+                <div class="task-subject" style="color:var(--text-muted);">☕ 총복습 및 버퍼 타임 (Buffer)</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">주중 밀린 과목 보안 및 오답 점검 타임입니다.</div>
+              </div>
+            `;
+          }
+
+          card.innerHTML = `
+            <div class="day-title">
+              <span>📅 DAY ${dayNum} (${dayOfWeekStr}요일)</span>
+              <span style="font-size:0.75rem; color:var(--accent-color);">순공 목표 3.5시간</span>
+            </div>
+            ${taskHTML}
+          `;
+          output.appendChild(card);
+        }
+      } else if (mode === 'weekly') {
+        // 선택한 D-Day 기간에 맞춰 모든 주차가 출력되도록 수정
+        for (let w = 1; w <= totalWeeks; w++) {
+          const card = document.createElement('div');
+          card.className = 'plan-day-card';
+
+          const wStart = (w - 1) * 7 + 1;
+          const wEnd = Math.min(w * 7, selectedDDay);
+
+          card.innerHTML = `
+            <div class="day-title">📅 ${w}주차 시간표 요약 (Day ${wStart} ~ Day ${wEnd})</div>
+            <p style="font-size:0.8rem; color:var(--text-muted);">목표 점수 가중치 적용 주간 배분표입니다.</p>
+            <div class="task-box">
+              <strong>월/수/금:</strong> ${subjects.slice(0, Math.ceil(subjects.length / 2)).map(s => `${s.name}(${s.targetScore}점목표)`).join(', ')}
+            </div>
+            <div class="task-box" style="margin-top:0.4rem;">
+              <strong>화/목/토:</strong> ${subjects.slice(Math.ceil(subjects.length / 2)).map(s => `${s.name}(${s.targetScore}점목표)`).join(', ')}
+            </div>
+            <div class="task-box" style="margin-top:0.4rem; background:var(--secondary-bg);">
+              <strong>일요일:</strong> 주간 총복습 및 약점 파트 보완
+            </div>
+          `;
+          output.appendChild(card);
+        }
+      } else if (mode === 'roadmap') {
+        output.innerHTML = `
+          <div class="plan-day-card">
+            <div class="day-title">🗺️ 시험 D-${selectedDDay} 회독 마일스톤</div>
+            ${selectedDDay >= 21 ? `
+              <div class="task-box"><strong>D-21 ~ D-15 (1주차):</strong> 전과목 개념 정리 & 기본 예제 (1회독)</div>
+              <div class="task-box"><strong>D-14 ~ D-8 (2주차):</strong> 프린트/부교재/기출 변형 문풀 (2회독)</div>
+              <div class="task-box"><strong>D-7 ~ D-1 (3주차):</strong> 목표 점수별 오답노트 & 직전 총정리 (3회독)</div>
+            ` : selectedDDay >= 14 ? `
+              <div class="task-box"><strong>D-14 ~ D-8 (1주차):</strong> 전 범위 기본+핵심 문제풀이 (1회독)</div>
+              <div class="task-box"><strong>D-7 ~ D-1 (2주차):</strong> 기출 문제 + 오답노트 완벽 회독 (2회독)</div>
+            ` : `
+              <div class="task-box"><strong>D-7 ~ D-4:</strong> 핵심 범위 초스피드 문제풀이 (1회독)</div>
+              <div class="task-box"><strong>D-3 ~ D-1:</strong> 직전 오답 및 필수 암기사항 최종 점검 (2회독)</div>
+            `}
+          </div>
+        `;
+      }
+    }
+
+    function changeWeekFilter(w) {
+      activeWeekFilter = w;
+      renderPlanResults('daily');
+    }
+
+    function switchResultTab(mode, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderPlanResults(mode);
+    }
+
+    generateSubjectInputs();
+    initTimetable();
+  </script>
+</body>
+</html>
